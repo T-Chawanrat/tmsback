@@ -16,7 +16,7 @@ export const importBillsData = async (req, res) => {
   let connection;
 
   try {
-    const { rows } = req.body;
+    const { rows, user_id, type } = req.body;
 
     if (!rows || !Array.isArray(rows) || rows.length === 0) {
       return res.status(400).json({
@@ -41,6 +41,8 @@ export const importBillsData = async (req, res) => {
       r.RECIPIENT_PROVINCE || null,
       r.RECIPIENT_ZIPCODE || null,
       r.SERIAL_NO || null,
+      user_id || null,
+      type || "IMPORT",
     ]);
 
     await connection.query(
@@ -50,7 +52,7 @@ export const importBillsData = async (req, res) => {
         NO_BILL, REFERENCE, SEND_DATE, CUSTOMER_NAME, RECIPIENT_CODE,
         RECIPIENT_NAME, RECIPIENT_TEL, RECIPIENT_ADDRESS,
         RECIPIENT_SUBDISTRICT, RECIPIENT_DISTRICT, RECIPIENT_PROVINCE,
-        RECIPIENT_ZIPCODE, SERIAL_NO
+        RECIPIENT_ZIPCODE, SERIAL_NO, user_id, type
       )
       VALUES ?
       `,

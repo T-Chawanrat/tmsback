@@ -4,10 +4,10 @@ import express from 'express';
 import cors from 'cors';
 import path from "path";
 import { fileURLToPath } from "url";
-import authRoutes from "./routes/authRoutes.js";
-import billRoutes from './routes/billRoutes.js';
-import billsDataRoutes from "./routes/billsDataRoutes.js";
-// import filterRoutes from "./routes/filterRoutes.js";
+import authRoute from "./routes/authRoute.js";
+import billRoute from './routes/billRoute.js';
+import billsDataRoute from "./routes/billsDataRoute.js";
+import filterRoute from "./routes/filterRoute.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -16,11 +16,10 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 app.use("/uploads", express.static(path.join(__dirname, "uploads")));
-// app.use("/uploads", express.static("uploads"));
-app.use("/", authRoutes); 
-app.use("/", billRoutes);
-app.use("/", billsDataRoutes);
-// app.use("/", filterRoutes);
+app.use("/", authRoute); 
+app.use("/", billRoute);
+app.use("/", billsDataRoute);
+app.use("/", filterRoute);
 
 app.get("/test", (req, res) => {
   res.send("Backend is working!");
