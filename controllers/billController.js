@@ -6,15 +6,8 @@ export const createBill = async (req, res) => {
     connection = await db.getConnection();
     await connection.beginTransaction();
 
-    const {
-      user_id,
-      receive_code,
-      name,
-      surname,
-      license_plate,
-      warehouse_name,
-      remark,
-    } = req.body;
+    const { user_id, receive_code, name, surname, license_plate, remark } =
+      req.body;
 
     const signatureFile = req.files?.signature ? req.files.signature[0] : null;
     const imageFiles = req.files?.images || [];
@@ -22,8 +15,15 @@ export const createBill = async (req, res) => {
     console.log("Signature file:", signatureFile);
     console.log("Image files:", imageFiles);
 
+    const [[userRow]] = await connection.query(
+      `SELECT dc_id FROM um_users WHERE user_id = ?`,
+      [user_id]
+    );
+
+    const dc_id = userRow?.dc_id || null;
+
     const [billResult] = await connection.query(
-      `INSERT INTO bills (user_id, receive_code, name, surname, license_plate, warehouse_name, sign, remark) 
+      `INSERT INTO bills (user_id, receive_code, name, surname, license_plate, dc_id, sign, remark)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         user_id,
@@ -31,7 +31,7 @@ export const createBill = async (req, res) => {
         name,
         surname,
         license_plate,
-        warehouse_name,
+        dc_id,
         signatureFile ? signatureFile.path : null,
         remark,
       ]
