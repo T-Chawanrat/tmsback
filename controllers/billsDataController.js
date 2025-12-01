@@ -12,6 +12,52 @@ const excelDateToMySQL = (input) => {
   return iso;
 };
 
+export const getBillsData = async (req, res) => {
+  let connection;
+
+  try {
+    connection = await db.getConnection();
+
+    const { SERIAL_NO, REFERENCE } = req.query;
+
+    let sql = `
+      SELECT
+        *
+      FROM bills_data
+      WHERE 1=1
+    `;
+    const params = [];
+
+    if (SERIAL_NO && SERIAL_NO.trim() !== "") {
+      sql += " AND SERIAL_NO LIKE ?";
+      params.push(`%${SERIAL_NO.trim()}%`);
+    }
+
+    if (REFERENCE && REFERENCE.trim() !== "") {
+      sql += " AND REFERENCE LIKE ?";
+      params.push(`%${REFERENCE.trim()}%`);
+    }
+
+    sql += " ORDER BY id ASC";
+
+    const [rows] = await connection.query(sql, params);
+
+    res.status(200).json({
+      success: true,
+      data: rows,
+    });
+  } catch (err) {
+    console.error("Error getBillsData:", err);
+    res.status(500).json({
+      success: false,
+      message: "ไม่สามารถดึงข้อมูล bills_data ได้",
+      error: err.message,
+    });
+  } finally {
+    if (connection) connection.release();
+  }
+};
+
 export const importBillsData = async (req, res) => {
   let connection;
 
