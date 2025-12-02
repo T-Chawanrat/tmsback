@@ -6,7 +6,7 @@ export const createBill = async (req, res) => {
     connection = await db.getConnection();
     await connection.beginTransaction();
 
-    const { user_id, receive_code, name, surname, license_plate, remark } =
+    const { user_id, REFERENCE, name, surname, license_plate, remark } =
       req.body;
 
     const signatureFile = req.files?.signature ? req.files.signature[0] : null;
@@ -23,11 +23,11 @@ export const createBill = async (req, res) => {
     const dc_id = userRow?.dc_id || null;
 
     const [billResult] = await connection.query(
-      `INSERT INTO bills (user_id, receive_code, name, surname, license_plate, dc_id, sign, remark)
+      `INSERT INTO bills (user_id, REFERENCE, name, surname, license_plate, dc_id, sign, remark)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         user_id,
-        receive_code,
+        REFERENCE,
         name,
         surname,
         license_plate,
@@ -42,11 +42,38 @@ export const createBill = async (req, res) => {
     if (imageFiles.length > 0) {
       const imageValues = imageFiles.map((file) => [billId, file.path]);
 
+      const [[checkRow]] = await connection.query(
+        `
+      SELECT COUNT(*) AS cnt
+      FROM bills_data
+      WHERE REFERENCE = ?
+      AND (warehouse_accept = 'N' OR dc_accept = 'N')
+  `,
+        [REFERENCE]
+      );
+
+      if (checkRow.cnt > 0) {
+        return res.status(400).json({
+          message:
+            "รายการยังไม่ครบเงื่อนไข: ยังไม่ยิงรับเข้าคลัง",
+        });
+      }
+
       await connection.query(
         `INSERT INTO bill_images (bill_id, image_url) VALUES ?`,
         [imageValues]
       );
     }
+
+    await connection.query(
+      `
+      UPDATE bills_data
+      SET image = 'Y',
+          sign = 'Y'
+      WHERE REFERENCE = ?
+      `,
+      [REFERENCE]
+    );
 
     await connection.commit();
 
