@@ -199,3 +199,80 @@ export const downloadImage = async (req, res) => {
     if (connection) connection.release();
   }
 };
+
+export const getBillsBySerial = async (req, res) => {
+  let connection;
+
+  try {
+    connection = await db.getConnection();
+    let { SERIAL_NO } = req.query;
+
+    if (!SERIAL_NO || !SERIAL_NO.trim()) {
+      return res.status(400).json({
+        success: false,
+        message: "กรุณาระบุ SERIAL_NO",
+      });
+    }
+
+    SERIAL_NO = SERIAL_NO.trim();
+
+    if (SERIAL_NO.length < 6) {
+      return res.status(400).json({
+        success: false,
+        message: "SERIAL_NO ไม่ถูกต้อง",
+      });
+    }
+
+    const [rows] = await connection.query(
+      `SELECT * FROM bills_data WHERE SERIAL_NO = ?`,
+      [SERIAL_NO]
+    );
+
+    if (rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: "ไม่พบข้อมูลสำหรับ SERIAL_NO นี้",
+      });
+    }
+
+    if (rows.length > 1) {
+      return res.status(409).json({
+        success: false,
+        message: "พบ SERIAL_NO นี้ซ้ำในระบบ",
+      });
+    }
+
+    const reference = rows[0].REFERENCE;
+
+    const [serialRows] = await connection.query(
+      `
+      SELECT SERIAL_NO
+      FROM bills_data
+      WHERE REFERENCE = ?
+      ORDER BY SERIAL_NO ASC
+      `,
+      [reference]
+    );
+
+    const serials = serialRows.map((r) => r.SERIAL_NO);
+    const uniqueSerials = Array.from(new Set(serials));
+
+    res.status(200).json({
+      success: true,
+      data: {
+        bill: rows[0],
+        REFERENCE: reference,
+        SERIALS: uniqueSerials,
+        serialCount: uniqueSerials.length,
+      },
+    });
+  } catch (err) {
+    console.error("Error getBillsBySerial:", err);
+    res.status(500).json({
+      success: false,
+      message: "เกิดข้อผิดพลาดภายในระบบ",
+    });
+  } finally {
+    if (connection) connection.release();
+  }
+};

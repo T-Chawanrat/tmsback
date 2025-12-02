@@ -4,6 +4,7 @@ import {
   getBill,
   getBills,
   downloadImage,
+  getBillsBySerial,
 } from "../controllers/billController.js";
 import { upload } from "../middlewares/upload.js";
 
@@ -21,5 +22,7 @@ router.post(
 router.get("/bills/:id", getBill);
 router.get("/bills", getBills);
 router.get("/bills/:id/downloadImage", downloadImage);
+router.get("/serial", getBillsBySerial);
+
 
 export default router;
