@@ -12,7 +12,53 @@ const excelDateToMySQL = (input) => {
   return iso;
 };
 
-export const getBillsData = async (req, res) => {
+// export const getBillsData = async (req, res) => {
+//   let connection;
+
+//   try {
+//     connection = await db.getConnection();
+
+//     const { SERIAL_NO, REFERENCE } = req.query;
+
+//     let sql = `
+//       SELECT
+//         *
+//       FROM bills_data
+//       WHERE 1=1
+//     `;
+//     const params = [];
+
+//     if (SERIAL_NO && SERIAL_NO.trim() !== "") {
+//       sql += " AND SERIAL_NO LIKE ?";
+//       params.push(`%${SERIAL_NO.trim()}%`);
+//     }
+
+//     if (REFERENCE && REFERENCE.trim() !== "") {
+//       sql += " AND REFERENCE LIKE ?";
+//       params.push(`%${REFERENCE.trim()}%`);
+//     }
+
+//     sql += " ORDER BY id ASC";
+
+//     const [rows] = await connection.query(sql, params);
+
+//     res.status(200).json({
+//       success: true,
+//       data: rows,
+//     });
+//   } catch (err) {
+//     console.error("Error getBillsData:", err);
+//     res.status(500).json({
+//       success: false,
+//       message: "ไม่สามารถดึงข้อมูล bills_data ได้",
+//       error: err.message,
+//     });
+//   } finally {
+//     if (connection) connection.release();
+//   }
+// };
+
+export const getBillsReport = async (req, res) => {
   let connection;
 
   try {
@@ -22,41 +68,68 @@ export const getBillsData = async (req, res) => {
 
     let sql = `
       SELECT
-        *
-      FROM bills_data
+        bd.*,
+        b.id AS bill_id,
+        b.user_id AS bill_user_id,
+        b.name AS bill_name,
+        b.surname AS bill_surname,
+        b.license_plate AS bill_license_plate,
+        b.dc_id AS bill_dc_id,
+        b.sign AS bill_sign,              -- path ลายเซ็น / ไฟล์ sign
+        b.remark AS bill_remark,
+        b.created_at AS bill_created_at,
+        GROUP_CONCAT(bi.image_url ORDER BY bi.id) AS bill_image_urls
+      FROM bills_data bd
+      LEFT JOIN bills b 
+        ON b.REFERENCE = bd.REFERENCE
+      LEFT JOIN bill_images bi 
+        ON bi.bill_id = b.id
       WHERE 1=1
     `;
+
     const params = [];
 
     if (SERIAL_NO && SERIAL_NO.trim() !== "") {
-      sql += " AND SERIAL_NO LIKE ?";
+      sql += " AND bd.SERIAL_NO LIKE ?";
       params.push(`%${SERIAL_NO.trim()}%`);
     }
 
     if (REFERENCE && REFERENCE.trim() !== "") {
-      sql += " AND REFERENCE LIKE ?";
+      sql += " AND bd.REFERENCE LIKE ?";
       params.push(`%${REFERENCE.trim()}%`);
     }
 
-    sql += " ORDER BY id ASC";
+    sql += `
+      GROUP BY bd.id, b.id
+      ORDER BY bd.id ASC
+    `;
 
     const [rows] = await connection.query(sql, params);
 
+    // แปลงผลลัพธ์ให้ image_urls เป็น array ใช้ง่ายใน frontend
+    const data = rows.map((row) => ({
+      ...row,
+      bill_image_urls: row.bill_image_urls
+        ? row.bill_image_urls.split(",")
+        : [],
+    }));
+
     res.status(200).json({
       success: true,
-      data: rows,
+      data,
     });
   } catch (err) {
-    console.error("Error getBillsData:", err);
+    console.error("Error getBillsReport:", err);
     res.status(500).json({
       success: false,
-      message: "ไม่สามารถดึงข้อมูล bills_data ได้",
+      message: "ไม่สามารถดึงข้อมูล report bills ได้",
       error: err.message,
     });
   } finally {
     if (connection) connection.release();
   }
 };
+
 
 export const importBillsData = async (req, res) => {
   let connection;

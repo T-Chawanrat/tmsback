@@ -1,5 +1,100 @@
 import db from "../config/db.js";
 
+// export const createBill = async (req, res) => {
+//   let connection;
+//   try {
+//     connection = await db.getConnection();
+//     await connection.beginTransaction();
+
+//     const { user_id, REFERENCE, name, surname, license_plate, remark } =
+//       req.body;
+
+//     const signatureFile = req.files?.signature ? req.files.signature[0] : null;
+//     const imageFiles = req.files?.images || [];
+
+//     console.log("Signature file:", signatureFile);
+//     console.log("Image files:", imageFiles);
+
+//     const [[userRow]] = await connection.query(
+//       `SELECT dc_id FROM um_users WHERE user_id = ?`,
+//       [user_id]
+//     );
+
+//     const dc_id = userRow?.dc_id || null;
+
+//     const [billResult] = await connection.query(
+//       `INSERT INTO bills (user_id, REFERENCE, name, surname, license_plate, dc_id, sign, remark)
+//        VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+//       [
+//         user_id,
+//         REFERENCE,
+//         name,
+//         surname,
+//         license_plate,
+//         dc_id,
+//         signatureFile ? signatureFile.path : null,
+//         remark,
+//       ]
+//     );
+
+//     const billId = billResult.insertId;
+
+//     if (imageFiles.length > 0) {
+//       const imageValues = imageFiles.map((file) => [billId, file.path]);
+
+//       const [[checkRow]] = await connection.query(
+//         `
+//       SELECT COUNT(*) AS cnt
+//       FROM bills_data
+//       WHERE REFERENCE = ?
+//       AND (warehouse_accept = 'N' OR dc_accept = 'N')
+//   `,
+//         [REFERENCE]
+//       );
+
+//       if (checkRow.cnt > 0) {
+//         return res.status(400).json({
+//           message:
+//             "รายการยังไม่ครบเงื่อนไข: ยังไม่ยิงรับเข้าคลัง",
+//         });
+//       }
+
+//       await connection.query(
+//         `INSERT INTO bill_images (bill_id, image_url) VALUES ?`,
+//         [imageValues]
+//       );
+//     }
+
+//     await connection.query(
+//       `
+//       UPDATE bills_data
+//       SET image = 'Y',
+//           sign = 'Y'
+//       WHERE REFERENCE = ?
+//       `,
+//       [REFERENCE]
+//     );
+
+//     await connection.commit();
+
+//     res.status(201).json({
+//       message: "บันทึกสำเร็จ",
+//       id: billId,
+//       imageCount: imageFiles.length,
+//       hasSignature: !!signatureFile,
+//     });
+//   } catch (err) {
+//     if (connection) await connection.rollback();
+//     console.error("Error creating bill:", err);
+//     res.status(500).json({
+//       message: "เกิดข้อผิดพลาดในการบันทึก",
+//       error: err.message,
+//     });
+//   } finally {
+//     if (connection) connection.release();
+//   }
+// };
+
 export const createBill = async (req, res) => {
   let connection;
   try {
@@ -12,9 +107,6 @@ export const createBill = async (req, res) => {
     const signatureFile = req.files?.signature ? req.files.signature[0] : null;
     const imageFiles = req.files?.images || [];
 
-    console.log("Signature file:", signatureFile);
-    console.log("Image files:", imageFiles);
-
     const [[userRow]] = await connection.query(
       `SELECT dc_id FROM um_users WHERE user_id = ?`,
       [user_id]
@@ -22,6 +114,7 @@ export const createBill = async (req, res) => {
 
     const dc_id = userRow?.dc_id || null;
 
+    // ▶ INSERT BILL
     const [billResult] = await connection.query(
       `INSERT INTO bills (user_id, REFERENCE, name, surname, license_plate, dc_id, sign, remark)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
@@ -39,32 +132,32 @@ export const createBill = async (req, res) => {
 
     const billId = billResult.insertId;
 
-    if (imageFiles.length > 0) {
-      const imageValues = imageFiles.map((file) => [billId, file.path]);
-
-      const [[checkRow]] = await connection.query(
-        `
+    // ▶ CHECK PENDING ITEMS (COUNT)
+    const [[pendingRow]] = await connection.query(
+      `
       SELECT COUNT(*) AS cnt
       FROM bills_data
       WHERE REFERENCE = ?
-      AND (warehouse_accept = 'N' OR dc_accept = 'N')
-  `,
-        [REFERENCE]
-      );
+      AND warehouse_accept = 'N'
+      AND dc_accept = 'N'
+      `,
+      [REFERENCE]
+    );
 
-      if (checkRow.cnt > 0) {
-        return res.status(400).json({
-          message:
-            "รายการยังไม่ครบเงื่อนไข: ยังไม่ยิงรับเข้าคลัง",
-        });
+    // ▶ INSERT IMAGES (เฉพาะตอนที่มีภาพเท่านั้น)
+    if (imageFiles.length > 0) {
+      const imageValues = imageFiles.map((file) => [billId, file.path]);
+
+      // ป้องกัน error: imageValues ต้องไม่ว่าง
+      if (imageValues.length > 0) {
+        await connection.query(
+          `INSERT INTO bill_images (bill_id, image_url) VALUES ?`,
+          [imageValues]
+        );
       }
-
-      await connection.query(
-        `INSERT INTO bill_images (bill_id, image_url) VALUES ?`,
-        [imageValues]
-      );
     }
 
+    // ▶ UPDATE bills_data flags
     await connection.query(
       `
       UPDATE bills_data
@@ -77,23 +170,25 @@ export const createBill = async (req, res) => {
 
     await connection.commit();
 
-    res.status(201).json({
+    return res.status(201).json({
       message: "บันทึกสำเร็จ",
       id: billId,
       imageCount: imageFiles.length,
       hasSignature: !!signatureFile,
+      pendingAcceptCount: pendingRow.cnt,
     });
   } catch (err) {
     if (connection) await connection.rollback();
-    console.error("Error creating bill:", err);
-    res.status(500).json({
-      message: "เกิดข้อผิดพลาดในการบันทึก",
+    console.error("BACKEND ERROR:", err);
+    return res.status(500).json({
+      message: "เกิดข้อผิดพลาดในการบันทึก (backend error)",
       error: err.message,
     });
   } finally {
     if (connection) connection.release();
   }
 };
+
 
 const DOMAIN = "https://xsendwork.com";
 
