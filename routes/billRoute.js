@@ -22,7 +22,7 @@ router.post(
 
 router.put(
   "/bills/:id/images",
-  upload.array("new_files[]", 10),
+  upload.fields([{ name: "images", maxCount: 9 }]),
   updateBillImages
 );
 

@@ -195,122 +195,99 @@ export const updateBillImages = async (req, res) => {
   let connection;
 
   try {
-    const paramId = req.params.id;
-    const bodyBillId = req.body.bill_id;
-    const billId = bodyBillId || paramId;
-
+    const billId = Number(req.params.id);
     if (!billId) {
-      return res.status(400).json({
-        success: false,
-        message: "ต้องระบุ bill_id",
-      });
+      return res.status(400).json({ message: "billId ไม่ถูกต้อง" });
     }
+
+    // -------------------------
+    // 1) รับ URL รูปที่จะลบ
+    // -------------------------
+    let deleteImageUrls = [];
+
+    if (req.body.deleteImageUrls) {
+      try {
+        deleteImageUrls = JSON.parse(req.body.deleteImageUrls);
+      } catch (err) {
+        deleteImageUrls = String(req.body.deleteImageUrls)
+          .split(",")
+          .map((s) => s.trim())
+          .filter(Boolean);
+      }
+    }
+
+    const imageFiles = req.files?.images || [];
 
     connection = await db.getConnection();
     await connection.beginTransaction();
 
-    // 1) เช็คว่ามีบิลจริงไหม
-    const [billRows] = await connection.query(
-      "SELECT id FROM bills WHERE id = ?",
+    // -------------------------
+    // 2) ดึงรูปเก่าทั้งหมดจาก DB
+    // -------------------------
+    const [oldImages] = await connection.query(
+      `SELECT id, image_url FROM bill_images WHERE bill_id = ?`,
       [billId]
     );
 
-    if (billRows.length === 0) {
-      await connection.rollback();
-      return res.status(404).json({
-        success: false,
-        message: "ไม่พบบิลตาม bill_id ที่ระบุ",
-      });
-    }
+    // -------------------------
+    // 3) ลบรูปเก่า (DB + ไฟล์)
+    // -------------------------
+    if (deleteImageUrls.length > 0) {
+      await connection.query(
+        `DELETE FROM bill_images WHERE bill_id = ? AND image_url IN (?)`,
+        [billId, deleteImageUrls]
+      );
 
-    // 2) ดึงรูปเดิมทั้งหมดใน bill_images
-    const [imageRows] = await connection.query(
-      "SELECT id, image_url FROM bill_images WHERE bill_id = ?",
-      [billId]
-    );
+      const imagesToDelete = oldImages.filter((img) =>
+        deleteImageUrls.includes(img.image_url)
+      );
 
-    // 3) อ่าน existing_urls[] จาก body แล้ว normalize
-    // frontend ตอนนี้ส่งเป็น full URL เช่น https://xsendwork.com/uploads/xxx.png
-    // ต้องตัดให้เหลือ "uploads/xxx.png" เพื่อเทียบกับ DB
-    let existingRaw = req.body["existing_urls[]"];
-    const keepSet = new Set();
+      for (const img of imagesToDelete) {
+        const filePath = path.resolve(img.image_url); // "uploads/xxx.jpg"
 
-    if (existingRaw) {
-      const arr = Array.isArray(existingRaw) ? existingRaw : [existingRaw];
-
-      arr.forEach((u) => {
-        if (!u) return;
-
-        let p = String(u).trim();
-
-        // ตัด domain หน้า /uploads/
-        const idx = p.indexOf("/uploads/");
-        if (idx !== -1) {
-          p = p.substring(idx + 1); // เหลือ "uploads/xxx..."
+        try {
+          await fs.promises.unlink(filePath);
+        } catch (err) {
+          console.warn("⚠ ลบไฟล์ไม่ได้ หรือไม่มีไฟล์:", filePath);
         }
-
-        if (p.startsWith("/")) p = p.slice(1); // กันเคส "/uploads/xxx"
-
-        keepSet.add(p);
-      });
-    }
-
-    // 4) รูปใหม่จาก frontend (field: new_files[] → มาจาก upload.array)
-    const newFiles = req.files || [];
-
-    // 5) ลบรูปที่ไม่มีใน existing แล้ว (ถือว่าถูกลบจากหน้าเว็บ)
-    for (const row of imageRows) {
-      const dbPath = row.image_url; // เช่น "uploads/image_....jpg"
-
-      if (!keepSet.has(dbPath)) {
-        // ลบ record ใน DB
-        await connection.query("DELETE FROM bill_images WHERE id = ?", [
-          row.id,
-        ]);
-
-        // พยายามลบไฟล์จริงในโฟลเดอร์ (optional)
-        const filePath = path.join(process.cwd(), dbPath);
-        fs.unlink(filePath, (err) => {
-          if (err) {
-            console.warn("ลบไฟล์ไม่สำเร็จ:", filePath, err.message);
-          }
-        });
       }
     }
 
-    // 6) เพิ่มรูปใหม่เข้า bill_images
-    for (const file of newFiles) {
-      // multer เก็บ path เป็น "uploads/xxxx" (ตาม middleware เดิม)
-      const dbPath = file.path.replace(/\\/g, "/"); // กัน \ ใน Windows
+    // -------------------------
+    // 4) เพิ่มรูปใหม่
+    // -------------------------
+    if (imageFiles.length > 0) {
+      const insertValues = imageFiles.map((f) => [billId, f.path]);
 
       await connection.query(
-        "INSERT INTO bill_images (bill_id, image_url, created_at) VALUES (?, ?, NOW())",
-        [billId, dbPath]
+        `INSERT INTO bill_images (bill_id, image_url) VALUES ?`,
+        [insertValues]
       );
     }
 
     await connection.commit();
 
-    // 7) ดึงรูปใหม่ทั้งหมดส่งกลับ (เผื่อ frontend ใช้ refresh)
+    // -------------------------
+    // 5) ดึงรูปใหม่ทั้งหมดส่งกลับ
+    // -------------------------
     const [updatedImages] = await connection.query(
-      "SELECT image_url FROM bill_images WHERE bill_id = ? ORDER BY id ASC",
+      `SELECT id, image_url FROM bill_images WHERE bill_id = ?`,
       [billId]
     );
 
-    const imageUrls = updatedImages.map((row) => row.image_url);
-
     return res.status(200).json({
-      success: true,
-      message: "อัปเดตรูปภาพเรียบร้อยแล้ว",
-      bill_id: billId,
-      image_urls: imageUrls,
+      message: "อัปเดตรูปของบิลเรียบร้อย",
+      billId,
+      deleted: deleteImageUrls,
+      addedCount: imageFiles.length,
+      images: updatedImages,
     });
   } catch (err) {
-    console.error("Error updateBillImages:", err);
     if (connection) await connection.rollback();
+    console.error("UPDATE BILL IMAGES ERROR:", err);
+
     return res.status(500).json({
-      success: false,
-      message: "ไม่สามารถอัปเดตรูปภาพได้",
+      message: "เกิดข้อผิดพลาดในการอัปเดตรูปของบิล",
       error: err.message,
     });
   } finally {
