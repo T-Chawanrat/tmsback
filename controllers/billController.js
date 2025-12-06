@@ -1,4 +1,6 @@
 import db from "../config/db.js";
+import fs from "fs";
+import path from "path";
 
 // export const createBill = async (req, res) => {
 //   let connection;
@@ -189,6 +191,132 @@ export const createBill = async (req, res) => {
   }
 };
 
+export const updateBillImages = async (req, res) => {
+  let connection;
+
+  try {
+    const paramId = req.params.id;
+    const bodyBillId = req.body.bill_id;
+    const billId = bodyBillId || paramId;
+
+    if (!billId) {
+      return res.status(400).json({
+        success: false,
+        message: "ต้องระบุ bill_id",
+      });
+    }
+
+    connection = await db.getConnection();
+    await connection.beginTransaction();
+
+    // 1) เช็คว่ามีบิลจริงไหม
+    const [billRows] = await connection.query(
+      "SELECT id FROM bills WHERE id = ?",
+      [billId]
+    );
+
+    if (billRows.length === 0) {
+      await connection.rollback();
+      return res.status(404).json({
+        success: false,
+        message: "ไม่พบบิลตาม bill_id ที่ระบุ",
+      });
+    }
+
+    // 2) ดึงรูปเดิมทั้งหมดใน bill_images
+    const [imageRows] = await connection.query(
+      "SELECT id, image_url FROM bill_images WHERE bill_id = ?",
+      [billId]
+    );
+
+    // 3) อ่าน existing_urls[] จาก body แล้ว normalize
+    // frontend ตอนนี้ส่งเป็น full URL เช่น https://xsendwork.com/uploads/xxx.png
+    // ต้องตัดให้เหลือ "uploads/xxx.png" เพื่อเทียบกับ DB
+    let existingRaw = req.body["existing_urls[]"];
+    const keepSet = new Set();
+
+    if (existingRaw) {
+      const arr = Array.isArray(existingRaw) ? existingRaw : [existingRaw];
+
+      arr.forEach((u) => {
+        if (!u) return;
+
+        let p = String(u).trim();
+
+        // ตัด domain หน้า /uploads/
+        const idx = p.indexOf("/uploads/");
+        if (idx !== -1) {
+          p = p.substring(idx + 1); // เหลือ "uploads/xxx..."
+        }
+
+        if (p.startsWith("/")) p = p.slice(1); // กันเคส "/uploads/xxx"
+
+        keepSet.add(p);
+      });
+    }
+
+    // 4) รูปใหม่จาก frontend (field: new_files[] → มาจาก upload.array)
+    const newFiles = req.files || [];
+
+    // 5) ลบรูปที่ไม่มีใน existing แล้ว (ถือว่าถูกลบจากหน้าเว็บ)
+    for (const row of imageRows) {
+      const dbPath = row.image_url; // เช่น "uploads/image_....jpg"
+
+      if (!keepSet.has(dbPath)) {
+        // ลบ record ใน DB
+        await connection.query("DELETE FROM bill_images WHERE id = ?", [
+          row.id,
+        ]);
+
+        // พยายามลบไฟล์จริงในโฟลเดอร์ (optional)
+        const filePath = path.join(process.cwd(), dbPath);
+        fs.unlink(filePath, (err) => {
+          if (err) {
+            console.warn("ลบไฟล์ไม่สำเร็จ:", filePath, err.message);
+          }
+        });
+      }
+    }
+
+    // 6) เพิ่มรูปใหม่เข้า bill_images
+    for (const file of newFiles) {
+      // multer เก็บ path เป็น "uploads/xxxx" (ตาม middleware เดิม)
+      const dbPath = file.path.replace(/\\/g, "/"); // กัน \ ใน Windows
+
+      await connection.query(
+        "INSERT INTO bill_images (bill_id, image_url, created_at) VALUES (?, ?, NOW())",
+        [billId, dbPath]
+      );
+    }
+
+    await connection.commit();
+
+    // 7) ดึงรูปใหม่ทั้งหมดส่งกลับ (เผื่อ frontend ใช้ refresh)
+    const [updatedImages] = await connection.query(
+      "SELECT image_url FROM bill_images WHERE bill_id = ? ORDER BY id ASC",
+      [billId]
+    );
+
+    const imageUrls = updatedImages.map((row) => row.image_url);
+
+    return res.status(200).json({
+      success: true,
+      message: "อัปเดตรูปภาพเรียบร้อยแล้ว",
+      bill_id: billId,
+      image_urls: imageUrls,
+    });
+  } catch (err) {
+    console.error("Error updateBillImages:", err);
+    if (connection) await connection.rollback();
+    return res.status(500).json({
+      success: false,
+      message: "ไม่สามารถอัปเดตรูปภาพได้",
+      error: err.message,
+    });
+  } finally {
+    if (connection) connection.release();
+  }
+};
 
 const DOMAIN = "https://xsendwork.com";
 
