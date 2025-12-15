@@ -4,7 +4,7 @@ export const getCustomers = async (req, res) => {
   try {
     const sql = `
       SELECT *
-      FROM admin_tmg.um_customers 
+      FROM xsendwork_tmg.um_customers 
       ORDER BY customer_name ASC
     `;
     const [rows] = await db.query(sql);
@@ -25,7 +25,7 @@ export const getWarehouses = async (req, res) => {
 
     let sql = `
       SELECT *
-      FROM admin_tmg.master_warehouses
+      FROM xsendwork_tmg.master_warehouses
     `;
     const params = [];
 
@@ -69,7 +69,7 @@ export const searchAddress = async (req, res) => {
         warehouse_id,
         warehouse_code,
         warehouse_name
-      FROM admin_tmg.master_warehouses
+      FROM xsendwork_tmg.master_warehouses
       WHERE
         tambon_name_th LIKE ?
         OR ampur_name_th LIKE ?
