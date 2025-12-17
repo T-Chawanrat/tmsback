@@ -130,7 +130,6 @@ export const getBillsReport = async (req, res) => {
   }
 };
 
-
 export const importBillsData = async (req, res) => {
   let connection;
 
@@ -422,7 +421,7 @@ export const getBillsWarehouse = async (req, res) => {
 
     const [rows] = await connection.query(
       `
-      SELECT 
+      SELECT
         id,
         NO_BILL,
         SERIAL_NO,

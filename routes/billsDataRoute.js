@@ -13,7 +13,6 @@ import {
 
 const router = express.Router();
 
-
 // router.get("/bills-data", getBillsData);
 router.get("/bills-data", getBillsReport);
 router.post("/import-bills", importBillsData);
