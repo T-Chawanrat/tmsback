@@ -12,52 +12,6 @@ const excelDateToMySQL = (input) => {
   return iso;
 };
 
-// export const getBillsData = async (req, res) => {
-//   let connection;
-
-//   try {
-//     connection = await db.getConnection();
-
-//     const { SERIAL_NO, REFERENCE } = req.query;
-
-//     let sql = `
-//       SELECT
-//         *
-//       FROM bills_data
-//       WHERE 1=1
-//     `;
-//     const params = [];
-
-//     if (SERIAL_NO && SERIAL_NO.trim() !== "") {
-//       sql += " AND SERIAL_NO LIKE ?";
-//       params.push(`%${SERIAL_NO.trim()}%`);
-//     }
-
-//     if (REFERENCE && REFERENCE.trim() !== "") {
-//       sql += " AND REFERENCE LIKE ?";
-//       params.push(`%${REFERENCE.trim()}%`);
-//     }
-
-//     sql += " ORDER BY id ASC";
-
-//     const [rows] = await connection.query(sql, params);
-
-//     res.status(200).json({
-//       success: true,
-//       data: rows,
-//     });
-//   } catch (err) {
-//     console.error("Error getBillsData:", err);
-//     res.status(500).json({
-//       success: false,
-//       message: "ไม่สามารถดึงข้อมูล bills_data ได้",
-//       error: err.message,
-//     });
-//   } finally {
-//     if (connection) connection.release();
-//   }
-// };
-
 export const getBillsReport = async (req, res) => {
   let connection;
 
@@ -101,7 +55,7 @@ export const getBillsReport = async (req, res) => {
 
     sql += `
       GROUP BY bd.id, b.id
-      ORDER BY bd.id ASC
+      ORDER BY bd.id DESC
     `;
 
     const [rows] = await connection.query(sql, params);
@@ -177,6 +131,7 @@ export const importBillsData = async (req, res) => {
         r.RECIPIENT_PROVINCE || null,
         r.RECIPIENT_ZIPCODE || null,
         r.SERIAL_NO || null,
+        r.PRICE || null,
         user_id || null,
         w.warehouse_name || null,
         w.warehouse_id || null,
@@ -191,7 +146,7 @@ export const importBillsData = async (req, res) => {
         NO_BILL, REFERENCE, SEND_DATE, CUSTOMER_NAME, RECIPIENT_CODE,
         RECIPIENT_NAME, RECIPIENT_TEL, RECIPIENT_ADDRESS,
         RECIPIENT_SUBDISTRICT, RECIPIENT_DISTRICT, RECIPIENT_PROVINCE,
-        RECIPIENT_ZIPCODE, SERIAL_NO, user_id,
+        RECIPIENT_ZIPCODE, SERIAL_NO, PRICE, user_id,
         warehouse_name, warehouse_id,
         type
       )
@@ -267,6 +222,7 @@ export const importBillsADV = async (req, res) => {
         r.RECIPIENT_PROVINCE || null,
         r.RECIPIENT_ZIPCODE || null,
         r.SERIAL_NO || null,
+        r.PRICE || null,
         user_id || null,
         w.warehouse_name || null,
         w.warehouse_id || null,
@@ -281,7 +237,7 @@ export const importBillsADV = async (req, res) => {
         NO_BILL, REFERENCE, SEND_DATE, CUSTOMER_NAME, RECIPIENT_CODE,
         RECIPIENT_NAME, RECIPIENT_TEL, RECIPIENT_ADDRESS,
         RECIPIENT_SUBDISTRICT, RECIPIENT_DISTRICT, RECIPIENT_PROVINCE,
-        RECIPIENT_ZIPCODE, SERIAL_NO, user_id,
+        RECIPIENT_ZIPCODE, SERIAL_NO, PRICE, user_id,
         warehouse_name, warehouse_id,
         type
       )
@@ -368,6 +324,7 @@ export const importBillsVGT = async (req, res) => {
         r.RECIPIENT_PROVINCE || null,
         r.RECIPIENT_ZIPCODE || null,
         r.SERIAL_NO || null,
+        r.PRICE || null,
         user_id || null,
         w.warehouse_name || null,
         w.warehouse_id || null,
@@ -382,7 +339,7 @@ export const importBillsVGT = async (req, res) => {
         NO_BILL, REFERENCE, SEND_DATE, CUSTOMER_NAME, RECIPIENT_CODE,
         RECIPIENT_NAME, RECIPIENT_TEL, RECIPIENT_ADDRESS,
         RECIPIENT_SUBDISTRICT, RECIPIENT_DISTRICT, RECIPIENT_PROVINCE,
-        RECIPIENT_ZIPCODE, SERIAL_NO, user_id,
+        RECIPIENT_ZIPCODE, SERIAL_NO, PRICE, user_id,
         warehouse_name, warehouse_id,
         type
       )

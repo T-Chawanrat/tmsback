@@ -11,6 +11,7 @@ import billRoute from './routes/billRoute.js';
 import billsDataRoute from "./routes/billsDataRoute.js";
 import filterRoute from "./routes/filterRoute.js";
 import labelRoute from "./routes/labelRoute.js";
+import exportExcelRoute from "./routes/exportExcelRoute.js";
 
 
 const __filename = fileURLToPath(import.meta.url);
@@ -28,6 +29,8 @@ app.use("/", billRoute);
 app.use("/", billsDataRoute);
 app.use("/", filterRoute);
 app.use("/", labelRoute);
+app.use("/api", exportExcelRoute);
+
 
 
 app.get("/test", (req, res) => {
