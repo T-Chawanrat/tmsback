@@ -18,7 +18,7 @@ export const getBillsReport = async (req, res) => {
   try {
     connection = await db.getConnection();
 
-    const { SERIAL_NO, REFERENCE } = req.query;
+    const { SERIAL_NO, REFERENCE, warehouse_id } = req.query;
 
     let sql = `
       SELECT
@@ -51,6 +51,11 @@ export const getBillsReport = async (req, res) => {
     if (REFERENCE && REFERENCE.trim() !== "") {
       sql += " AND bd.REFERENCE LIKE ?";
       params.push(`%${REFERENCE.trim()}%`);
+    }
+
+    if (warehouse_id) {
+      sql += " AND bd.warehouse_id = ?";
+      params.push(Number(warehouse_id));
     }
 
     sql += `

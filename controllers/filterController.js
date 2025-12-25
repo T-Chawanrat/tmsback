@@ -19,6 +19,24 @@ export const getCustomers = async (req, res) => {
   }
 };
 
+export const getDropdownWarehouse = async (req, res) => {
+  try {
+    const sql = `
+      SELECT *
+      FROM xsendwork_tmg.mm_warehouses
+      `;
+    const [rows] = await db.query(sql);
+
+    res.json({
+      data: rows,
+      count: rows.length,
+    });
+  } catch (err) {
+    console.error("getDropdownWarehouse error:", err);
+    res.status(500).json({ message: "An error occurred" });
+  }
+};
+
 export const getWarehouses = async (req, res) => {
   try {
     const { zip_code } = req.query; // 👈 รับ zip_code จาก query
