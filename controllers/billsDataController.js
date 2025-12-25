@@ -1,4 +1,5 @@
 import db from "../config/db.js";
+import { getPaginationParams } from "../utils/pagination.js";
 
 // แปลง Excel serial → JS date → 'YYYY-MM-DD'
 const excelDateToMySQL = (input) => {
@@ -12,6 +13,83 @@ const excelDateToMySQL = (input) => {
   return iso;
 };
 
+// export const getBillsReport = async (req, res) => {
+//   let connection;
+
+//   try {
+//     connection = await db.getConnection();
+
+//     const { SERIAL_NO, REFERENCE, warehouse_id } = req.query;
+
+//     let sql = `
+//       SELECT
+//         bd.*,
+//         b.id AS bill_id,
+//         b.user_id AS bill_user_id,
+//         b.name AS bill_name,
+//         b.surname AS bill_surname,
+//         b.license_plate AS bill_license_plate,
+//         b.dc_id AS bill_dc_id,
+//         b.sign AS bill_sign,              -- path ลายเซ็น / ไฟล์ sign
+//         b.remark AS bill_remark,
+//         b.created_at AS bill_created_at,
+//         GROUP_CONCAT(bi.image_url ORDER BY bi.id) AS bill_image_urls
+//       FROM bills_data bd
+//       LEFT JOIN bills b
+//         ON b.REFERENCE = bd.REFERENCE
+//       LEFT JOIN bill_images bi
+//         ON bi.bill_id = b.id
+//       WHERE 1=1
+//     `;
+
+//     const params = [];
+
+//     if (SERIAL_NO && SERIAL_NO.trim() !== "") {
+//       sql += " AND bd.SERIAL_NO LIKE ?";
+//       params.push(`%${SERIAL_NO.trim()}%`);
+//     }
+
+//     if (REFERENCE && REFERENCE.trim() !== "") {
+//       sql += " AND bd.REFERENCE LIKE ?";
+//       params.push(`%${REFERENCE.trim()}%`);
+//     }
+
+//     if (warehouse_id) {
+//       sql += " AND bd.warehouse_id = ?";
+//       params.push(Number(warehouse_id));
+//     }
+
+//     sql += `
+//       GROUP BY bd.id, b.id
+//       ORDER BY bd.id DESC
+//     `;
+
+//     const [rows] = await connection.query(sql, params);
+
+//     // แปลงผลลัพธ์ให้ image_urls เป็น array ใช้ง่ายใน frontend
+//     const data = rows.map((row) => ({
+//       ...row,
+//       bill_image_urls: row.bill_image_urls
+//         ? row.bill_image_urls.split(",")
+//         : [],
+//     }));
+
+//     res.status(200).json({
+//       success: true,
+//       data,
+//     });
+//   } catch (err) {
+//     console.error("Error getBillsReport:", err);
+//     res.status(500).json({
+//       success: false,
+//       message: "ไม่สามารถดึงข้อมูล report bills ได้",
+//       error: err.message,
+//     });
+//   } finally {
+//     if (connection) connection.release();
+//   }
+// };
+
 export const getBillsReport = async (req, res) => {
   let connection;
 
@@ -20,19 +98,11 @@ export const getBillsReport = async (req, res) => {
 
     const { SERIAL_NO, REFERENCE, warehouse_id } = req.query;
 
-    let sql = `
-      SELECT
-        bd.*,
-        b.id AS bill_id,
-        b.user_id AS bill_user_id,
-        b.name AS bill_name,
-        b.surname AS bill_surname,
-        b.license_plate AS bill_license_plate,
-        b.dc_id AS bill_dc_id,
-        b.sign AS bill_sign,              -- path ลายเซ็น / ไฟล์ sign
-        b.remark AS bill_remark,
-        b.created_at AS bill_created_at,
-        GROUP_CONCAT(bi.image_url ORDER BY bi.id) AS bill_image_urls
+    // ใช้ utils เดิม/ใหม่
+    const { page, pageSize, skip } = getPaginationParams(req, 100);
+
+    // --- base sql (เหมือนเดิม) ---
+    let baseSql = `
       FROM bills_data bd
       LEFT JOIN bills b 
         ON b.REFERENCE = bd.REFERENCE
@@ -43,29 +113,57 @@ export const getBillsReport = async (req, res) => {
 
     const params = [];
 
-    if (SERIAL_NO && SERIAL_NO.trim() !== "") {
-      sql += " AND bd.SERIAL_NO LIKE ?";
+    if (SERIAL_NO?.trim()) {
+      baseSql += ` AND bd.SERIAL_NO LIKE ?`;
       params.push(`%${SERIAL_NO.trim()}%`);
     }
 
-    if (REFERENCE && REFERENCE.trim() !== "") {
-      sql += " AND bd.REFERENCE LIKE ?";
+    if (REFERENCE?.trim()) {
+      baseSql += ` AND bd.REFERENCE LIKE ?`;
       params.push(`%${REFERENCE.trim()}%`);
     }
 
     if (warehouse_id) {
-      sql += " AND bd.warehouse_id = ?";
+      baseSql += ` AND bd.warehouse_id = ?`;
       params.push(Number(warehouse_id));
     }
 
-    sql += `
+    // --- 1) count total (ต้องนับหลัง group) ---
+    const countSql = `
+  SELECT COUNT(*) AS total
+  FROM (
+    SELECT bd.id AS bd_id, b.id AS bill_id
+    ${baseSql}
+    GROUP BY bd.id, b.id
+  ) x
+`;
+
+    const [[countRow]] = await connection.query(countSql, params);
+    const total = countRow?.total || 0;
+
+    // --- 2) data query + pagination ---
+    const dataSql = `
+      SELECT
+        bd.*,
+        b.id AS bill_id,
+        b.user_id AS bill_user_id,
+        b.name AS bill_name,
+        b.surname AS bill_surname,
+        b.license_plate AS bill_license_plate,
+        b.dc_id AS bill_dc_id,
+        b.sign AS bill_sign,
+        b.remark AS bill_remark,
+        b.created_at AS bill_created_at,
+        GROUP_CONCAT(bi.image_url ORDER BY bi.id) AS bill_image_urls
+      ${baseSql}
       GROUP BY bd.id, b.id
       ORDER BY bd.id DESC
+      LIMIT ? OFFSET ?
     `;
 
-    const [rows] = await connection.query(sql, params);
+    const dataParams = [...params, pageSize, skip];
+    const [rows] = await connection.query(dataSql, dataParams);
 
-    // แปลงผลลัพธ์ให้ image_urls เป็น array ใช้ง่ายใน frontend
     const data = rows.map((row) => ({
       ...row,
       bill_image_urls: row.bill_image_urls
@@ -76,6 +174,12 @@ export const getBillsReport = async (req, res) => {
     res.status(200).json({
       success: true,
       data,
+      pagination: {
+        page,
+        pageSize,
+        total,
+        totalPages: Math.ceil(total / pageSize),
+      },
     });
   } catch (err) {
     console.error("Error getBillsReport:", err);
