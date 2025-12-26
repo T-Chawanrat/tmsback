@@ -1,7 +1,7 @@
 import db from "../config/db.js";
 import { getPaginationParams } from "../utils/pagination.js";
 
-// แปลง Excel serial → JS date → 'YYYY-MM-DD'
+
 const excelDateToMySQL = (input) => {
   if (input === null || input === undefined || input === "") return null;
   if (typeof input === "string" && input.includes("-")) return input;
@@ -13,82 +13,82 @@ const excelDateToMySQL = (input) => {
   return iso;
 };
 
-// export const getBillsReport = async (req, res) => {
-//   let connection;
 
-//   try {
-//     connection = await db.getConnection();
 
-//     const { SERIAL_NO, REFERENCE, warehouse_id } = req.query;
 
-//     let sql = `
-//       SELECT
-//         bd.*,
-//         b.id AS bill_id,
-//         b.user_id AS bill_user_id,
-//         b.name AS bill_name,
-//         b.surname AS bill_surname,
-//         b.license_plate AS bill_license_plate,
-//         b.dc_id AS bill_dc_id,
-//         b.sign AS bill_sign,              -- path ลายเซ็น / ไฟล์ sign
-//         b.remark AS bill_remark,
-//         b.created_at AS bill_created_at,
-//         GROUP_CONCAT(bi.image_url ORDER BY bi.id) AS bill_image_urls
-//       FROM bills_data bd
-//       LEFT JOIN bills b
-//         ON b.REFERENCE = bd.REFERENCE
-//       LEFT JOIN bill_images bi
-//         ON bi.bill_id = b.id
-//       WHERE 1=1
-//     `;
 
-//     const params = [];
 
-//     if (SERIAL_NO && SERIAL_NO.trim() !== "") {
-//       sql += " AND bd.SERIAL_NO LIKE ?";
-//       params.push(`%${SERIAL_NO.trim()}%`);
-//     }
 
-//     if (REFERENCE && REFERENCE.trim() !== "") {
-//       sql += " AND bd.REFERENCE LIKE ?";
-//       params.push(`%${REFERENCE.trim()}%`);
-//     }
 
-//     if (warehouse_id) {
-//       sql += " AND bd.warehouse_id = ?";
-//       params.push(Number(warehouse_id));
-//     }
 
-//     sql += `
-//       GROUP BY bd.id, b.id
-//       ORDER BY bd.id DESC
-//     `;
 
-//     const [rows] = await connection.query(sql, params);
 
-//     // แปลงผลลัพธ์ให้ image_urls เป็น array ใช้ง่ายใน frontend
-//     const data = rows.map((row) => ({
-//       ...row,
-//       bill_image_urls: row.bill_image_urls
-//         ? row.bill_image_urls.split(",")
-//         : [],
-//     }));
 
-//     res.status(200).json({
-//       success: true,
-//       data,
-//     });
-//   } catch (err) {
-//     console.error("Error getBillsReport:", err);
-//     res.status(500).json({
-//       success: false,
-//       message: "ไม่สามารถดึงข้อมูล report bills ได้",
-//       error: err.message,
-//     });
-//   } finally {
-//     if (connection) connection.release();
-//   }
-// };
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 export const getBillsReport = async (req, res) => {
   let connection;
@@ -98,10 +98,10 @@ export const getBillsReport = async (req, res) => {
 
     const { SERIAL_NO, REFERENCE, warehouse_id } = req.query;
 
-    // ใช้ utils เดิม/ใหม่
+    
     const { page, pageSize, skip } = getPaginationParams(req, 100);
 
-    // --- base sql (เหมือนเดิม) ---
+    
     let baseSql = `
       FROM bills_data bd
       LEFT JOIN bills b 
@@ -128,7 +128,7 @@ export const getBillsReport = async (req, res) => {
       params.push(Number(warehouse_id));
     }
 
-    // --- 1) count total (ต้องนับหลัง group) ---
+    
     const countSql = `
   SELECT COUNT(*) AS total
   FROM (
@@ -141,7 +141,7 @@ export const getBillsReport = async (req, res) => {
     const [[countRow]] = await connection.query(countSql, params);
     const total = countRow?.total || 0;
 
-    // --- 2) data query + pagination ---
+    
     const dataSql = `
       SELECT
         bd.*,
@@ -208,12 +208,12 @@ export const importBillsData = async (req, res) => {
     connection = await db.getConnection();
     await connection.beginTransaction();
 
-    // ✅ ดึงข้อมูล warehouse หลังจากมี connection แล้ว
+    
     const [warehouseRows] = await connection.query(
       "SELECT warehouse_id, warehouse_name, zip_code FROM master_warehouses"
     );
 
-    // ✅ ทำ map จาก zip_code → warehouse_id, warehouse_name
+    
     const warehouseMap = {};
     warehouseRows.forEach((w) => {
       warehouseMap[w.zip_code] = {
@@ -222,7 +222,7 @@ export const importBillsData = async (req, res) => {
       };
     });
 
-    // ✅ เตรียมค่า insert
+    
     const insertValues = rows.map((r) => {
       const w = warehouseMap[r.RECIPIENT_ZIPCODE] || {};
 
@@ -299,12 +299,12 @@ export const importBillsADV = async (req, res) => {
     connection = await db.getConnection();
     await connection.beginTransaction();
 
-    // ✅ ดึงข้อมูล warehouse หลังจากมี connection แล้ว
+    
     const [warehouseRows] = await connection.query(
       "SELECT warehouse_id, warehouse_name, zip_code FROM master_warehouses"
     );
 
-    // ✅ ทำ map จาก zip_code → warehouse_id, warehouse_name
+    
     const warehouseMap = {};
     warehouseRows.forEach((w) => {
       warehouseMap[w.zip_code] = {
@@ -313,7 +313,7 @@ export const importBillsADV = async (req, res) => {
       };
     });
 
-    // ✅ เตรียมค่า insert
+    
     const insertValues = rows.map((r) => {
       const w = warehouseMap[r.RECIPIENT_ZIPCODE] || {};
 
@@ -391,7 +391,7 @@ export const importBillsVGT = async (req, res) => {
     connection = await db.getConnection();
     await connection.beginTransaction();
 
-    // 1) ดึง mapping จาก mm_warehouses (มี dc_code แล้ว)
+    
     const [warehouseRows] = await connection.query(
       "SELECT warehouse_id, warehouse_name, dc_code FROM mm_warehouses"
     );
@@ -405,16 +405,16 @@ export const importBillsVGT = async (req, res) => {
       };
     });
 
-    // helper: ดึง code จาก TO_DC เช่น "545 ศูนย์ร้อยเอ็ด" -> "545"
+    
     const parseDcCode = (toDcRaw) => {
       if (!toDcRaw) return "";
       const s = String(toDcRaw).trim();
-      // ตัดเฉพาะตัวเลข/รหัสก่อนช่องว่าง
+      
       const firstToken = s.split(/\s+/)[0];
       return firstToken;
     };
 
-    // 2) เตรียมค่า insert ให้ตรงกับโครง bills_data
+    
     const insertValues = rows.map((r) => {
       const dcCode = parseDcCode(r.TO_DC);
       const w = warehouseMapByCode[dcCode] || {};
@@ -481,7 +481,7 @@ export const getBillsWarehouse = async (req, res) => {
   let connection;
 
   try {
-    const { warehouse_accept = "N" } = req.query; // default = 'N'
+    const { warehouse_accept = "N" } = req.query; 
 
     connection = await db.getConnection();
 
@@ -532,7 +532,7 @@ export const updateBillsWarehouseAccept = async (req, res) => {
     connection = await db.getConnection();
     await connection.beginTransaction();
 
-    // ใช้ IN (?) ให้ mysql2 ช่วยขยาย array
+    
     await connection.query(
       `
       UPDATE bills_data
@@ -567,8 +567,8 @@ export const getBillsDC = async (req, res) => {
   try {
     const { warehouse_accept = "Y", dc_accept = "N" } = req.query;
 
-    // ⭐ เอา user_id ของคนที่ login
-    // ถ้ามี auth middleware ให้ใช้ req.user.user_id แทนได้
+    
+    
     const currentUserId = req.user?.user_id || req.query.user_id;
 
     if (!currentUserId) {
@@ -634,7 +634,7 @@ export const updateBillsDCAccept = async (req, res) => {
     connection = await db.getConnection();
     await connection.beginTransaction();
 
-    // ใช้ IN (?) ให้ mysql2 ช่วยขยาย array
+    
     await connection.query(
       `
       UPDATE bills_data

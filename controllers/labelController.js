@@ -1,51 +1,51 @@
-// import db from "../config/db.js";
 
-// export const getBillsDataByUser = async (req, res) => {
-//   let connection;
 
-//   try {
-//     // ดึง user_id จาก token (req.user) หรือ จาก query (?user_id=1)
-//     const userId = req.user?.user_id || req.query.user_id;
 
-//     if (!userId) {
-//       return res.status(400).json({
-//         success: false,
-//         message: "กรุณาระบุ user_id หรือ login ให้เรียบร้อย",
-//       });
-//     }
 
-//     connection = await db.getConnection();
 
-//     const [rows] = await connection.query(
-//       `
-//       SELECT *
-//       FROM bills_data
-//       WHERE user_id = ?
-//       AND customer_input = 'Y'
-//       AND create_date = CURDATE()
-//       ORDER BY id DESC
-//       `,
-//       [userId]
-//     );
 
-//     return res.status(200).json({
-//       success: true,
-//       count: rows.length,
-//       data: rows,
-//     });
-//   } catch (err) {
-//     console.error("Error getBillsDataByUser:", err);
-//     return res.status(500).json({
-//       success: false,
-//       message: "เกิดข้อผิดพลาดในการดึงข้อมูล bills_data ตาม user",
-//       error: err.message,
-//     });
-//   } finally {
-//     if (connection) connection.release();
-//   }
-// };
 
-// controllers/labelController.js
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 import fs from "fs";
 import path from "path";
 import bwipjs from "bwip-js";
@@ -56,15 +56,15 @@ import { fileURLToPath } from "url";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// โฟลเดอร์เก็บรูป labels (อยู่ระดับเดียวกับ server.js)
+
 const LABEL_DIR = path.join(__dirname, "..", "labels");
 
-// กันชื่อไฟล์เพี้ยน
+
 const sanitize = (text) => {
   return String(text || "").replace(/[^a-zA-Z0-9_-]/g, "_");
 };
 
-// ✅ สร้าง barcode (ถ้ายังไม่มี)
+
 const generateBarcode = async (serial) => {
   const clean = sanitize(serial);
   const filename = `barcode_${clean}.png`;
@@ -100,170 +100,170 @@ const generateQR = async (serial) => {
   return filename;
 };
 
-// export const getPrintLabels = async (req, res) => {
-//   let connection;
 
-//   try {
-//     const userId = req.user?.user_id || req.query.user_id;
 
-//     if (!userId) {
-//       return res.status(400).json({
-//         success: false,
-//         message: "กรุณาระบุ user_id หรือ login ให้เรียบร้อย",
-//       });
-//     }
 
-//     await fs.promises.mkdir(LABEL_DIR, { recursive: true });
 
-//     connection = await db.getConnection();
 
-//     const [rows] = await connection.query(
-//       `
-//       SELECT *
-//       FROM bills_data
-//       WHERE user_id = ?
-//         AND customer_input = 'Y'
-//         ORDER BY id DESC
-//       `,
-//       [userId]
-//     );
 
-//     const baseUrl = `${req.protocol}://${req.get("host")}`;
 
-//     const result = await Promise.all(
-//       rows.map(async (row) => {
-//         const serial = row.SERIAL_NO;
 
-//         if (!serial) {
-//           return {
-//             ...row,
-//             barcode_url: null,
-//             qr_url: null,
-//           };
-//         }
 
-//         const barcodeFile = await generateBarcode(serial);
-//         const qrFile = await generateQR(serial);
 
-//         return {
-//           ...row,
-//           barcode_url: `${baseUrl}/labels/${barcodeFile}`,
-//           qr_url: `${baseUrl}/labels/${qrFile}`,
-//         };
-//       })
-//     );
 
-//     return res.status(200).json({
-//       success: true,
-//       count: result.length,
-//       data: result,
-//     });
-//   } catch (err) {
-//     console.error("Error getPrintLabels:", err);
-//     return res.status(500).json({
-//       success: false,
-//       message: "เกิดข้อผิดพลาดในการดึงข้อมูล/สร้าง Label",
-//       error: err.message,
-//     });
-//   } finally {
-//     if (connection) connection.release();
-//   }
-// };
 
-// export const getPrintLabels = async (req, res) => {
-//   let connection;
 
-//   try {
-//     const userId = req.user?.user_id || req.query.user_id;
 
-//     if (!userId) {
-//       return res.status(400).json({
-//         success: false,
-//         message: "กรุณาระบุ user_id หรือ login ให้เรียบร้อย",
-//       });
-//     }
 
-//     await fs.promises.mkdir(LABEL_DIR, { recursive: true });
-//     connection = await db.getConnection();
 
-//     // 1) หา role_id ของ user ที่เรียก API นี้
-//     const [[userRow]] = await connection.query(
-//       `SELECT role_id FROM um_users WHERE user_id = ? LIMIT 1`,
-//       [userId]
-//     );
 
-//     if (!userRow) {
-//       return res.status(404).json({
-//         success: false,
-//         message: "ไม่พบผู้ใช้งาน (user_id) ในระบบ",
-//       });
-//     }
 
-//     const roleId = Number(userRow.role_id);
-//     const canSeeAll = [1, 5, 7].includes(roleId);
-//     const onlySelf = roleId === 2;
 
-//     if (!canSeeAll && !onlySelf) {
-//       return res.status(403).json({
-//         success: false,
-//         message: "คุณไม่มีสิทธิ์เข้าถึงข้อมูลส่วนนี้",
-//       });
-//     }
 
-//     // 2) สร้าง SQL ตามสิทธิ์
-//     let sql = `
-//       SELECT *
-//       FROM bills_data
-//       WHERE customer_input = 'Y'
-//     `;
-//     const params = [];
 
-//     if (onlySelf) {
-//       sql += ` AND user_id = ? `;
-//       params.push(userId);
-//     }
 
-//     sql += ` ORDER BY id DESC `;
 
-//     const [rows] = await connection.query(sql, params);
 
-//     const baseUrl = `${req.protocol}://${req.get("host")}`;
 
-//     const result = await Promise.all(
-//       rows.map(async (row) => {
-//         const serial = row.SERIAL_NO;
 
-//         if (!serial) {
-//           return { ...row, barcode_url: null, qr_url: null };
-//         }
 
-//         const barcodeFile = await generateBarcode(serial);
-//         const qrFile = await generateQR(serial);
 
-//         return {
-//           ...row,
-//           barcode_url: `${baseUrl}/labels/${barcodeFile}`,
-//           qr_url: `${baseUrl}/labels/${qrFile}`,
-//         };
-//       })
-//     );
 
-//     return res.status(200).json({
-//       success: true,
-//       count: result.length,
-//       data: result,
-//     });
-//   } catch (err) {
-//     console.error("Error getPrintLabels:", err);
-//     return res.status(500).json({
-//       success: false,
-//       message: "เกิดข้อผิดพลาดในการดึงข้อมูล/สร้าง Label",
-//       error: err.message,
-//     });
-//   } finally {
-//     if (connection) connection.release();
-//   }
-// };
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 export const getPrintLabels = async (req, res) => {
   let connection;
@@ -281,7 +281,7 @@ export const getPrintLabels = async (req, res) => {
     await fs.promises.mkdir(LABEL_DIR, { recursive: true });
     connection = await db.getConnection();
 
-    // 1) หา role_id ของ user ที่เรียก API นี้
+    
     const [[userRow]] = await connection.query(
       `SELECT role_id FROM um_users WHERE user_id = ? LIMIT 1`,
       [userId]
@@ -305,7 +305,7 @@ export const getPrintLabels = async (req, res) => {
       });
     }
 
-    // 3) สร้าง SQL ตามสิทธิ์ + filter
+    
     let sql = `
       SELECT *
       FROM bills_data
@@ -314,7 +314,7 @@ export const getPrintLabels = async (req, res) => {
     `;
     const params = [];
 
-    // permission
+    
     if (onlySelf) {
       sql += ` AND user_id = ? `;
       params.push(userId);
@@ -378,7 +378,7 @@ export const getReprintLabels = async (req, res) => {
     await fs.promises.mkdir(LABEL_DIR, { recursive: true });
     connection = await db.getConnection();
 
-    // 1) หา role_id ของ user ที่เรียก API นี้
+    
     const [[userRow]] = await connection.query(
       `SELECT role_id FROM um_users WHERE user_id = ? LIMIT 1`,
       [userId]
@@ -402,14 +402,14 @@ export const getReprintLabels = async (req, res) => {
       });
     }
 
-    // ✅ 2) รับ filter จาก query (ให้ตรงกับ frontend)
+    
     const serial = (req.query.serial || "").toString().trim();
     const reference = (req.query.reference || "").toString().trim();
     let date = (req.query.date || "").toString().trim();
     const customerName = (req.query.customer_name || "").toString().trim();
     const warehouseName = (req.query.warehouse_name || "").toString().trim();
 
-    // 3) สร้าง SQL ตามสิทธิ์ + filter
+    
     let sql = `
       SELECT *
       FROM bills_data
@@ -417,13 +417,13 @@ export const getReprintLabels = async (req, res) => {
     `;
     const params = [];
 
-    // permission
+    
     if (onlySelf) {
       sql += ` AND user_id = ? `;
       params.push(userId);
     }
 
-    // filters
+    
     if (serial) {
       sql += ` AND SERIAL_NO LIKE ? `;
       params.push(`%${serial}%`);
@@ -441,7 +441,7 @@ export const getReprintLabels = async (req, res) => {
       date = now.toISOString().slice(0, 10); // YYYY-MM-DD
     }
 
-    // dropdown: match ตรงค่า (เพราะมาจาก bills_data อยู่แล้ว)
+    
     if (customerName) {
       sql += ` AND CUSTOMER_NAME = ? `;
       params.push(customerName);

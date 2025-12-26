@@ -1,4 +1,4 @@
-// controllers/authController.js
+
 import db from "../config/db.js";
 
 export const login = async (req, res) => {

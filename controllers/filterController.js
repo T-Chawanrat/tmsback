@@ -39,7 +39,7 @@ export const getDropdownWarehouse = async (req, res) => {
 
 export const getWarehouses = async (req, res) => {
   try {
-    const { zip_code } = req.query; // 👈 รับ zip_code จาก query
+    const { zip_code } = req.query; 
 
     let sql = `
       SELECT *

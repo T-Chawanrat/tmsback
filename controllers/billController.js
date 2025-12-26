@@ -21,7 +21,7 @@ export const createBill = async (req, res) => {
 
     const dc_id = userRow?.dc_id || null;
 
-    // ▶ INSERT BILL
+    
     const [billResult] = await connection.query(
       `INSERT INTO bills (user_id, REFERENCE, name, surname, license_plate, dc_id, sign, remark)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
@@ -39,7 +39,7 @@ export const createBill = async (req, res) => {
 
     const billId = billResult.insertId;
 
-    // ▶ CHECK PENDING ITEMS (COUNT)
+    
     const [[pendingRow]] = await connection.query(
       `
       SELECT COUNT(*) AS cnt
@@ -51,11 +51,11 @@ export const createBill = async (req, res) => {
       [REFERENCE]
     );
 
-    // ▶ INSERT IMAGES (เฉพาะตอนที่มีภาพเท่านั้น)
+    
     if (imageFiles.length > 0) {
       const imageValues = imageFiles.map((file) => [billId, file.path]);
 
-      // ป้องกัน error: imageValues ต้องไม่ว่าง
+      
       if (imageValues.length > 0) {
         await connection.query(
           `INSERT INTO bill_images (bill_id, image_url) VALUES ?`,
@@ -64,7 +64,7 @@ export const createBill = async (req, res) => {
       }
     }
 
-    // ▶ UPDATE bills_data flags
+    
     await connection.query(
       `
       UPDATE bills_data
@@ -105,9 +105,9 @@ export const updateBillImages = async (req, res) => {
       return res.status(400).json({ message: "billId ไม่ถูกต้อง" });
     }
 
-    // -------------------------
-    // 1) รับ URL รูปที่จะลบ
-    // -------------------------
+    
+    
+    
     let deleteImageUrls = [];
 
     if (req.body.deleteImageUrls) {
@@ -126,17 +126,17 @@ export const updateBillImages = async (req, res) => {
     connection = await db.getConnection();
     await connection.beginTransaction();
 
-    // -------------------------
-    // 2) ดึงรูปเก่าทั้งหมดจาก DB
-    // -------------------------
+    
+    
+    
     const [oldImages] = await connection.query(
       `SELECT id, image_url FROM bill_images WHERE bill_id = ?`,
       [billId]
     );
 
-    // -------------------------
-    // 3) ลบรูปเก่า (DB + ไฟล์)
-    // -------------------------
+    
+    
+    
     if (deleteImageUrls.length > 0) {
       await connection.query(
         `DELETE FROM bill_images WHERE bill_id = ? AND image_url IN (?)`,
@@ -148,7 +148,7 @@ export const updateBillImages = async (req, res) => {
       );
 
       for (const img of imagesToDelete) {
-        const filePath = path.resolve(img.image_url); // "uploads/xxx.jpg"
+        const filePath = path.resolve(img.image_url); 
 
         try {
           await fs.promises.unlink(filePath);
@@ -158,9 +158,9 @@ export const updateBillImages = async (req, res) => {
       }
     }
 
-    // -------------------------
-    // 4) เพิ่มรูปใหม่
-    // -------------------------
+    
+    
+    
     if (imageFiles.length > 0) {
       const insertValues = imageFiles.map((f) => [billId, f.path]);
 
@@ -172,9 +172,9 @@ export const updateBillImages = async (req, res) => {
 
     await connection.commit();
 
-    // -------------------------
-    // 5) ดึงรูปใหม่ทั้งหมดส่งกลับ
-    // -------------------------
+    
+    
+    
     const [updatedImages] = await connection.query(
       `SELECT id, image_url FROM bill_images WHERE bill_id = ?`,
       [billId]
@@ -225,7 +225,7 @@ export const getBill = async (req, res) => {
       [billId]
     );
 
-    // bill.images = imageRows.map((img) => img.image_url);
+    
 
     bill.images = imageRows.map((img) =>
       img.image_url ? `${DOMAIN}/${img.image_url}` : null
@@ -263,7 +263,7 @@ export const getBills = async (req, res) => {
         `SELECT image_url FROM bill_images WHERE bill_id = ?`,
         [bill.id]
       );
-      // bill.images = images.map((img) => img.image_url);
+      
       bill.images = images.map((img) =>
         img.image_url ? `${DOMAIN}/${img.image_url}` : null
       );
